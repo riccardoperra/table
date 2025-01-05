@@ -6,7 +6,7 @@ import {
   FlexRenderComponent,
   FlexRenderDirective,
   injectFlexRenderContext,
-} from '../src/flex-render'
+} from '../src'
 import { setFixtureSignalInput, setFixtureSignalInputs } from './test-utils'
 import type { ComponentFixture } from '@angular/core/testing'
 import type { TemplateRef } from '@angular/core'

@@ -5,7 +5,7 @@ import { ColumnDef, stockFeatures } from '@tanstack/table-core'
 import { injectTable } from '../src/injectTable'
 import {
   experimentalReactivity_testShouldBeComputedProperty,
-  setSignalInputs,
+  setFixtureSignalInputs,
   testShouldBeComputedProperty,
 } from './test-utils'
 
@@ -27,7 +27,7 @@ describe('injectTable', () => {
     }
 
     const fixture = TestBed.createComponent(FakeComponent)
-    setSignalInputs(fixture.componentInstance, {
+    setFixtureSignalInputs(fixture, {
       data: [],
     })
 

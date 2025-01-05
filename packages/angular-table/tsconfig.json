@@ -12,5 +12,5 @@
     "experimentalDecorators": true,
     "importHelpers": true
   },
-  "include": ["src", "tests", "eslint.config.js", "vite.config.ts"]
+  "include": ["src", "tests", "vitest.config.ts", "vite.config.ts"]
 }

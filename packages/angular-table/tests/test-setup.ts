@@ -1,5 +1,6 @@
-import '@analogjs/vite-plugin-angular/setup-vitest'
+import '@analogjs/vitest-angular/setup-zone'
 import '@testing-library/jest-dom/vitest'
+
 import {
   BrowserDynamicTestingModule,
   platformBrowserDynamicTesting,
@@ -8,5 +9,5 @@ import { getTestBed } from '@angular/core/testing'
 
 getTestBed().initTestEnvironment(
   BrowserDynamicTestingModule,
-  platformBrowserDynamicTesting(),
+  platformBrowserDynamicTesting()
 )
