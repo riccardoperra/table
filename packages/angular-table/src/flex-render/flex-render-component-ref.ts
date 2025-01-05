@@ -41,7 +41,8 @@ export class FlexRenderComponentRef<T> {
   #inputValueDiffer: KeyValueDiffer<any, any>
   #outputValueDiffer: KeyValueDiffer<any, any>
 
-  outputSubscribers: Record<string, OutputRefSubscription> = {}
+  readonly outputSubscribers: Record<string, OutputRefSubscription> = {}
+  readonly outputCallbacks: Record<string, (...args: any[]) => void> = {}
 
   constructor(
     readonly componentRef: ComponentRef<T>,
@@ -107,11 +108,10 @@ export class FlexRenderComponentRef<T> {
     }
     if (outputDiff) {
       outputDiff.forEachAddedItem(item => {
-        this.setOutput(item.currentValue, value => {
-          const outputCallback =
-            content.outputs?.[item.key as keyof typeof content.outputs]
-          ;(outputCallback as (...args: any[]) => void)(value)
-        })
+        this.setOutput(item.key, item.currentValue)
+      })
+      outputDiff.forEachChangedItem(item => {
+        this.outputCallbacks[item.currentValue] = item.currentValue
       })
       outputDiff.forEachRemovedItem(item => {
         this.unsubscribeOutput(item.key)
@@ -141,16 +141,14 @@ export class FlexRenderComponentRef<T> {
     if (prop in this.outputSubscribers) {
       this.outputSubscribers[prop]?.unsubscribe()
       delete this.outputSubscribers[prop]
+      delete this.outputCallbacks[prop]
     }
   }
 
   setOutputs(outputs: Record<string, Function>) {
     this.unsubscribeOutputs()
     for (const prop in outputs) {
-      this.setOutput(prop, value => {
-        const outputEmitter = outputs[prop]
-        ;(outputEmitter as (...args: any[]) => void)(value)
-      })
+      this.setOutput(prop, outputs[prop] as (...args: any[]) => void)
     }
   }
 
@@ -164,14 +162,15 @@ export class FlexRenderComponentRef<T> {
     if (!this.componentData.allowedOutputNames.includes(outputName)) {
       return
     }
-    if (this.outputSubscribers[outputName]) {
-      this.unsubscribeOutput(outputName)
+    this.outputCallbacks[outputName] = emit
+    if (outputName in this.outputSubscribers) {
+      return
     }
     const instance = this.componentRef.instance
     const output = instance[outputName as keyof typeof instance]
     if (output && output instanceof OutputEmitterRef) {
       this.outputSubscribers[outputName] = output.subscribe(value =>
-        emit(value)
+        this.outputCallbacks[outputName]?.(value)
       )
     }
   }
