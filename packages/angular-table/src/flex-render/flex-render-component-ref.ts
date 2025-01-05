@@ -73,19 +73,14 @@ export class FlexRenderComponentRef<T> {
   }
 
   /**
-   * Get component inputs diff by the given item
+   * Get component input and output diff by the given item
    */
-  diffInputs(item: FlexRenderComponent<T>) {
-    return this.#inputValueDiffer.diff(item.inputs ?? {})
+  diff(item: FlexRenderComponent<T>) {
+    return {
+      inputDiff: this.#inputValueDiffer.diff(item.inputs ?? {}),
+      outputDiff: this.#outputValueDiffer.diff(item.outputs ?? {}),
+    }
   }
-
-  /**
-   * Get component outputs diff by the given item
-   */
-  diffOutputs(item: FlexRenderComponent<T>) {
-    return this.#outputValueDiffer.diff(item.outputs ?? {})
-  }
-
   /**
    *
    * @param compare Whether the current ref component instance is the same as the given one
@@ -100,8 +95,7 @@ export class FlexRenderComponentRef<T> {
   update(content: FlexRenderComponent<T>) {
     const eq = this.eqType(content)
     if (!eq) return
-
-    const inputDiff = this.diffInputs(content)
+    const { inputDiff, outputDiff } = this.diff(content)
     if (inputDiff) {
       inputDiff.forEachAddedItem(item =>
         this.setInput(item.key, item.currentValue)
@@ -111,8 +105,6 @@ export class FlexRenderComponentRef<T> {
       )
       inputDiff.forEachRemovedItem(item => this.setInput(item.key, undefined))
     }
-
-    const outputDiff = this.diffOutputs(content)
     if (outputDiff) {
       outputDiff.forEachAddedItem(item => {
         this.setOutput(item.currentValue, value => {
@@ -122,9 +114,7 @@ export class FlexRenderComponentRef<T> {
         })
       })
       outputDiff.forEachRemovedItem(item => {
-        if (this.outputSubscribers[item.key]) {
-          this.outputSubscribers[item.key]?.unsubscribe()
-        }
+        this.unsubscribeOutput(item.key)
       })
     }
 
@@ -164,22 +154,25 @@ export class FlexRenderComponentRef<T> {
     }
   }
 
-  setOutput(outputName: string, emitter: OutputEmitterRef<any>['emit']): void {
+  setInput(key: string, value: unknown) {
+    if (this.componentData.allowedInputNames.includes(key)) {
+      this.componentRef.setInput(key, value)
+    }
+  }
+
+  setOutput(outputName: string, emit: OutputEmitterRef<any>['emit']): void {
     if (!this.componentData.allowedOutputNames.includes(outputName)) {
       return
+    }
+    if (this.outputSubscribers[outputName]) {
+      this.unsubscribeOutput(outputName)
     }
     const instance = this.componentRef.instance
     const output = instance[outputName as keyof typeof instance]
     if (output && output instanceof OutputEmitterRef) {
-      this.outputSubscribers[outputName] = output.subscribe(value => {
-        emitter(value)
-      })
-    }
-  }
-
-  setInput(key: string, value: unknown) {
-    if (this.componentData.allowedInputNames.includes(key)) {
-      this.componentRef.setInput(key, value)
+      this.outputSubscribers[outputName] = output.subscribe(value =>
+        emit(value)
+      )
     }
   }
 }
