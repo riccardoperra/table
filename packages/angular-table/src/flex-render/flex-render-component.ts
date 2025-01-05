@@ -17,9 +17,7 @@ type Outputs<T> = {
   [K in keyof T as T[K] extends OutputEmitterRef<infer R>
     ? K
     : never]?: T[K] extends OutputEmitterRef<infer R>
-    ? void extends R
-      ? () => void
-      : (value?: R) => void
+    ? OutputEmitterRef<R>['emit']
     : never
 }
 
