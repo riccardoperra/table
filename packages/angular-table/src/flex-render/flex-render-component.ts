@@ -70,6 +70,7 @@ interface FlexRenderOptions<
  *
  * - options object must be passed when the given component instance contains at least one required signal input.
  * - options/inputs is typed with the given component inputs
+ * - options/outputs is typed with the given component outputs
  */
 export function flexRenderComponent<
   TComponent = any,
