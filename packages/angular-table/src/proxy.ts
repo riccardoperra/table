@@ -21,11 +21,7 @@ export function proxifyTable<T>(
        * Attempt to convert all accessors into computed ones,
        * excluding handlers as they do not retain any reactive value
        */
-      if (
-        property.startsWith('get') &&
-        !property.endsWith('Handler') &&
-        !property.endsWith('Model')
-      ) {
+      if (property.startsWith('get') && !property.endsWith('Handler')) {
         const maybeFn = table[property] as Function | never
         if (typeof maybeFn === 'function') {
           Object.defineProperty(target, property, {

@@ -186,9 +186,9 @@ export class FlexRenderComponentRef<T> {
     const instance = this.componentRef.instance
     const output = instance[outputName as keyof typeof instance]
     if (output && output instanceof OutputEmitterRef) {
-      this.#outputSubscribers[outputName] = output.subscribe(value =>
+      this.#outputSubscribers[outputName] = output.subscribe(value => {
         this.#outputCallbacks[outputName]?.(value)
-      )
+      })
     }
   }
 }

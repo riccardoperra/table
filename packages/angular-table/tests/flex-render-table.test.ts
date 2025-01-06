@@ -1,8 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   input,
+  output,
   signal,
   type TemplateRef,
   ViewChild,
@@ -10,14 +10,15 @@ import {
 import {
   type CellContext,
   ColumnDef,
+  type ExpandedState,
   getCoreRowModel,
+  type TableOptions,
 } from '@tanstack/table-core'
 import {
   createAngularTable,
+  FlexRender,
   flexRenderComponent,
-  FlexRenderComponent,
   type FlexRenderContent,
-  FlexRenderDirective,
   injectFlexRenderContext,
 } from '../src'
 import { TestBed } from '@angular/core/testing'
@@ -68,8 +69,8 @@ describe('FlexRenderDirective', () => {
     @Component({
       template: `
         <ng-template #template let-context
-          >Cell id: {{ context.cell.id }}</ng-template
-        >
+          >Cell id: {{ context.cell.id }}
+        </ng-template>
       `,
       standalone: true,
     })
@@ -149,6 +150,99 @@ describe('FlexRenderDirective', () => {
     expect(el!.tagName).toEqual('APP-TEST-BADGE')
     expect(el.textContent).toEqual('Updated status')
   })
+
+  test('Support cell with component output', async () => {
+    @Component({
+      selector: 'expand-cell',
+      template: `
+        <button (click)="toggleExpand.emit()">
+          {{ expanded() ? 'Expanded' : 'Not expanded' }}
+        </button>
+      `,
+      changeDetection: ChangeDetectionStrategy.OnPush,
+      standalone: true,
+    })
+    class ExpandCell {
+      readonly expanded = input(false)
+      readonly toggleExpand = output<void>()
+    }
+
+    @Component({
+      template: `
+        <table>
+          <tbody>
+            @for (row of table.getRowModel().rows; track row.id) {
+              <tr>
+                @for (cell of row.getVisibleCells(); track cell.id) {
+                  <td>
+                    <ng-container
+                      *flexRender="
+                        cell.column.columnDef.cell;
+                        props: cell.getContext();
+                        let cell
+                      "
+                    >
+                      <span [innerHTML]="cell"></span>
+                    </ng-container>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      `,
+      changeDetection: ChangeDetectionStrategy.OnPush,
+      standalone: true,
+      selector: 'app-table-test',
+      imports: [FlexRender],
+    })
+    class TestComponent {
+      readonly columns = [
+        {
+          id: 'expand',
+          header: 'Expand',
+          cell: context => {
+            return flexRenderComponent(ExpandCell, {
+              inputs: { expanded: context.row.getIsExpanded() },
+              outputs: { toggleExpand: () => context.row.toggleExpanded() },
+            })
+          },
+        },
+      ] satisfies ColumnDef<TestData>[]
+      readonly data = signal<TestData[]>(defaultData)
+      readonly expandState = signal<ExpandedState>({})
+
+      readonly table = createAngularTable(() => {
+        return {
+          columns: this.columns,
+          data: this.data(),
+          getCoreRowModel: getCoreRowModel(),
+          state: { expanded: this.expandState() },
+          onExpandedChange: updaterOrValue => {
+            typeof updaterOrValue === 'function'
+              ? this.expandState.update(updaterOrValue)
+              : this.expandState.set(updaterOrValue)
+          },
+        }
+      })
+    }
+    const fixture = TestBed.createComponent(TestComponent)
+    fixture.detectChanges()
+
+    const expandCell = fixture.debugElement.query(By.directive(ExpandCell))
+    expect(fixture.componentInstance.expandState()).toEqual({})
+    expect(expandCell.componentInstance.expanded()).toEqual(false)
+
+    const buttonEl = expandCell.query(By.css('button'))
+    expect(buttonEl.nativeElement.innerHTML).toEqual(' Not expanded ')
+    buttonEl.triggerEventHandler('click')
+
+    expect(fixture.componentInstance.expandState()).toEqual({
+      '0': true,
+    })
+    fixture.detectChanges()
+    expect(buttonEl.nativeElement.innerHTML).toEqual(' Expanded ')
+  })
 })
 
 function expectPrimitiveValueIs(
@@ -166,7 +260,8 @@ type TestData = { id: string; title: string }
 
 export function createTestTable(
   data: TestData[],
-  columns: ColumnDef<TestData, any>[]
+  columns: ColumnDef<TestData, any>[],
+  optionsFn?: () => Partial<TableOptions<TestData>>
 ) {
   @Component({
     template: `
@@ -229,7 +324,7 @@ export function createTestTable(
     changeDetection: ChangeDetectionStrategy.OnPush,
     standalone: true,
     selector: 'app-table-test',
-    imports: [FlexRenderDirective],
+    imports: [FlexRender],
   })
   class TestComponent {
     readonly columns = input<ColumnDef<TestData>[]>(columns)
@@ -239,6 +334,7 @@ export function createTestTable(
 
     readonly table = createAngularTable(() => {
       return {
+        ...(optionsFn?.() ?? {}),
         columns: this.columns(),
         data: this.data(),
         getCoreRowModel: getCoreRowModel(),
