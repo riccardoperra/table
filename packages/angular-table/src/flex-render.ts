@@ -268,8 +268,6 @@ export class FlexRenderDirective<TProps extends NonNullable<unknown>>
       flexRenderComponent.content,
       componentInjector
     )
-    if (inputs) view.setInputs(inputs)
-    if (outputs) view.setOutputs(outputs)
     return new FlexRenderComponentView(flexRenderComponent, view)
   }
 
@@ -283,7 +281,6 @@ export class FlexRenderDirective<TProps extends NonNullable<unknown>>
       }),
       this.injector
     )
-    view.setInputs({ ...this.props })
     return new FlexRenderComponentView(component, view)
   }
 }

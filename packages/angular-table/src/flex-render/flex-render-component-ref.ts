@@ -26,12 +26,18 @@ export class FlexRenderComponentFactory {
         injector: componentInjector,
       }
     )
-
-    return new FlexRenderComponentRef(
+    const view = new FlexRenderComponentRef(
       componentRef,
       flexRenderComponent,
       componentInjector
     )
+
+    const { inputs, outputs } = flexRenderComponent
+
+    if (inputs) view.setInputs(inputs)
+    if (outputs) view.setOutputs(outputs)
+
+    return view
   }
 }
 
@@ -137,6 +143,12 @@ export class FlexRenderComponentRef<T> {
     }
   }
 
+  setInput(key: string, value: unknown) {
+    if (this.#componentData.allowedInputNames.includes(key)) {
+      this.componentRef.setInput(key, value)
+    }
+  }
+
   setOutputs(
     outputs: Record<
       string,
@@ -146,12 +158,6 @@ export class FlexRenderComponentRef<T> {
     this.#outputRegistry.unsubscribeAll()
     for (const prop in outputs) {
       this.setOutput(prop, outputs[prop])
-    }
-  }
-
-  setInput(key: string, value: unknown) {
-    if (this.#componentData.allowedInputNames.includes(key)) {
-      this.componentRef.setInput(key, value)
     }
   }
 
