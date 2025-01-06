@@ -89,8 +89,7 @@ your `ComponentType, with the ability to include parameters such as inputs, outp
 
 ```ts
 import {flexRenderComponent} from "./flex-render-component";
-import {ChangeDetectionStrategy} from "@angular/core";
-import {output} from "nx/src/utils/output";
+import {ChangeDetectionStrategy, input, output} from "@angular/core";
 
 @Component({
   template: `
