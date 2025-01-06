@@ -210,6 +210,19 @@ describe('FlexRenderDirective', () => {
   })
 
   test('Support cell with component output', async () => {
+    const columns = [
+      {
+        id: 'expand',
+        header: 'Expand',
+        cell: ({ row }) => {
+          return flexRenderComponent(ExpandCell, {
+            inputs: { expanded: row.getIsExpanded() },
+            outputs: { toggleExpand: () => row.toggleExpanded() },
+          })
+        },
+      },
+    ] satisfies ColumnDef<TestData>[]
+
     @Component({
       selector: 'expand-cell',
       template: `
@@ -255,25 +268,12 @@ describe('FlexRenderDirective', () => {
       imports: [FlexRender],
     })
     class TestComponent {
-      readonly columns = [
-        {
-          id: 'expand',
-          header: 'Expand',
-          cell: context => {
-            return flexRenderComponent(ExpandCell, {
-              inputs: { expanded: context.row.getIsExpanded() },
-              outputs: { toggleExpand: () => context.row.toggleExpanded() },
-            })
-          },
-        },
-      ] satisfies ColumnDef<TestData>[]
-      readonly data = signal<TestData[]>(defaultData)
       readonly expandState = signal<ExpandedState>({})
 
       readonly table = createAngularTable(() => {
         return {
-          columns: this.columns,
-          data: this.data(),
+          columns: columns,
+          data: defaultData,
           getCoreRowModel: getCoreRowModel(),
           state: { expanded: this.expandState() },
           onExpandedChange: updaterOrValue => {
