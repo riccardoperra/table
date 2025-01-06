@@ -21,7 +21,14 @@ export function proxifyTable<T>(
        * Attempt to convert all accessors into computed ones,
        * excluding handlers as they do not retain any reactive value
        */
-      if (property.startsWith('get') && !property.endsWith('Handler')) {
+      if (
+        property.startsWith('get') &&
+        !property.endsWith('Handler')
+        // e.g. getCoreRowModel, getSelectedRowModel etc.
+        // We need that after a signal change even `rowModel` may mark the view as dirty.
+        // This allows to always get the latest `getContext` value while using flexRender
+        // && !property.endsWith('Model')
+      ) {
         const maybeFn = table[property] as Function | never
         if (typeof maybeFn === 'function') {
           Object.defineProperty(target, property, {
