@@ -1,12 +1,12 @@
 {
   "name": "@tanstack/angular-table",
-  "version": "9.0.0-alpha.10",
+  "version": "8.20.5",
   "description": "Headless UI for building powerful tables & datagrids for Angular.",
   "author": "Tanner Linsley",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TanStack/table.git",
+    "url": "https://github.com/TanStack/table.git",
     "directory": "packages/angular-table"
   },
   "homepage": "https://tanstack.com/table",
@@ -21,49 +21,49 @@
     "datagrid"
   ],
   "type": "module",
-  "module": "dist/esm2022/index.mjs",
-  "types": "dist/index.d.ts",
+  "module": "build/lib/esm2022/index.mjs",
+  "types": "build/lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "esm": "./dist/esm2022/index.mjs",
-      "esm2022": "./dist/esm2022/index.mjs",
-      "default": "./dist/fesm2022/tanstack-angular-table.mjs"
+      "types": "./build/lib/index.d.ts",
+      "esm": "./build/lib/esm2022/index.mjs",
+      "esm2022": "./build/lib/esm2022/index.mjs",
+      "default": "./build/lib/fesm2022/tanstack-angular-table.mjs"
     },
     "./package.json": {
       "default": "./package.json"
     }
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=12"
   },
   "files": [
-    "dist",
+    "build/lib/*",
     "src"
   ],
   "scripts": {
-    "build": "ng-packagr -p ng-package.json -c tsconfig.build.json && rimraf ./build/lib/package.json",
-    "build:types": "tsc --emitDeclarationOnly",
-    "clean": "rimraf ./build && rimraf ./dist",
-    "test:build": "publint --strict",
-    "test:eslint": "eslint ./src",
+    "clean": "rimraf ./build",
+    "test:types": "tsc --noEmit && vitest --typecheck",
     "test:lib": "vitest",
     "test:lib:dev": "vitest --watch",
-    "test:types": "tsc"
+    "build": "ng-packagr -p ng-package.json -c tsconfig.build.json && rimraf ./build/lib/package.json"
   },
   "dependencies": {
     "@tanstack/table-core": "workspace:*",
-    "tslib": "^2.8.1"
+    "tslib": "^2.6.2"
   },
   "devDependencies": {
-    "@analogjs/vite-plugin-angular": "^1.10.1",
-    "@angular/core": "^19.0.5",
-    "@angular/platform-browser": "^19.0.5",
-    "@angular/platform-browser-dynamic": "^19.0.5",
-    "ng-packagr": "^19.0.1"
+    "@analogjs/vite-plugin-angular": "^1.11.0",
+    "@analogjs/vitest-angular": "^1.11.0",
+    "@angular/core": "^17.3.9",
+    "@angular/platform-browser": "^17.3.9",
+    "@angular/platform-browser-dynamic": "^17.3.9",
+    "ng-packagr": "^17.3.0",
+    "typescript": "5.4.5",
+    "vitest": "^1.6.0"
   },
   "peerDependencies": {
-    "@angular/core": ">=19"
+    "@angular/core": ">=17"
   },
   "sideEffects": false
 }

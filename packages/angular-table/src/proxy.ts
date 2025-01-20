@@ -1,60 +1,58 @@
-import { computed, untracked } from '@angular/core'
-import type { Signal } from '@angular/core'
-import type { RowData, Table, TableFeatures } from '@tanstack/table-core'
+import { computed, type Signal, untracked } from '@angular/core'
+import { type Table } from '@tanstack/table-core'
 
-type TableSignal<
-  TFeatures extends TableFeatures,
-  TData extends RowData,
-> = Table<TFeatures, TData> & Signal<Table<TFeatures, TData>>
+type TableSignal<T> = Table<T> & Signal<Table<T>>
 
-export function proxifyTable<
-  TFeatures extends TableFeatures,
-  TData extends RowData,
->(
-  tableSignal: Signal<Table<TFeatures, TData>>,
-): Table<TFeatures, TData> & Signal<Table<TFeatures, TData>> {
-  const internalState = tableSignal as TableSignal<TFeatures, TData>
-
-  const proxyTargetImplementation = {
-    default: getDefaultProxyHandler(tableSignal),
-    experimental: getExperimentalProxyHandler(tableSignal),
-  } as const
+export function proxifyTable<T>(
+  tableSignal: Signal<Table<T>>
+): Table<T> & Signal<Table<T>> {
+  const internalState = tableSignal as TableSignal<T>
 
   return new Proxy(internalState, {
     apply() {
-      const signal = untracked(tableSignal)
-      const impl = signal.options.enableExperimentalReactivity
-        ? proxyTargetImplementation.experimental
-        : proxyTargetImplementation.default
-      return impl.apply()
+      return tableSignal()
     },
-    get(target, property, receiver): any {
-      const signal = untracked(tableSignal)
-      const impl = signal.options.enableExperimentalReactivity
-        ? proxyTargetImplementation.experimental
-        : proxyTargetImplementation.default
-      return impl.get(target, property, receiver)
+    get(target, property: keyof Table<T>): any {
+      if (target[property]) {
+        return target[property]
+      }
+      const table = untracked(tableSignal)
+      /**
+       * Attempt to convert all accessors into computed ones,
+       * excluding handlers as they do not retain any reactive value
+       */
+      if (
+        property.startsWith('get') &&
+        !property.endsWith('Handler')
+        // e.g. getCoreRowModel, getSelectedRowModel etc.
+        // We need that after a signal change even `rowModel` may mark the view as dirty.
+        // This allows to always get the latest `getContext` value while using flexRender
+        // && !property.endsWith('Model')
+      ) {
+        const maybeFn = table[property] as Function | never
+        if (typeof maybeFn === 'function') {
+          Object.defineProperty(target, property, {
+            value: toComputed(tableSignal, maybeFn),
+            configurable: true,
+            enumerable: true,
+          })
+          return target[property]
+        }
+      }
+      // @ts-expect-error
+      return (target[property] = table[property])
     },
-    has(_, prop) {
-      const signal = untracked(tableSignal)
-      const impl = signal.options.enableExperimentalReactivity
-        ? proxyTargetImplementation.experimental
-        : proxyTargetImplementation.default
-      return impl.has(_, prop)
+    has(_, prop: keyof Table<T>) {
+      return !!untracked(tableSignal)[prop]
     },
     ownKeys() {
-      const signal = untracked(tableSignal)
-      const impl = signal.options.enableExperimentalReactivity
-        ? proxyTargetImplementation.experimental
-        : proxyTargetImplementation.default
-      return impl.ownKeys()
+      return Reflect.ownKeys(untracked(tableSignal))
     },
     getOwnPropertyDescriptor() {
-      const signal = untracked(tableSignal)
-      const impl = signal.options.enableExperimentalReactivity
-        ? proxyTargetImplementation.experimental
-        : proxyTargetImplementation.default
-      return impl.getOwnPropertyDescriptor()
+      return {
+        enumerable: true,
+        configurable: true,
+      }
     },
   })
 }
@@ -70,37 +68,26 @@ export function proxifyTable<
  * we'll wrap all accessors into a cached function wrapping a computed
  * that return it's value based on the given parameters
  */
-export function toComputed<
-  TFeatures extends TableFeatures,
-  TData extends RowData,
->(signal: Signal<Table<TFeatures, TData>>, fn: Function, debugName?: string) {
+function toComputed<T>(signal: Signal<Table<T>>, fn: Function) {
   const hasArgs = fn.length > 0
   if (!hasArgs) {
-    return computed(
-      () => {
-        void signal()
-        return fn()
-      },
-      { debugName },
-    )
+    return computed(() => {
+      void signal()
+      return fn()
+    })
   }
 
   const computedCache: Record<string, Signal<unknown>> = {}
 
-  // Declare at least a static argument in order to detect fns `length` > 0
-  return (arg0: any, ...otherArgs: Array<any>) => {
-    const argsArray = [arg0, ...otherArgs]
+  return (...argsArray: any[]) => {
     const serializedArgs = serializeArgs(...argsArray)
     if (computedCache.hasOwnProperty(serializedArgs)) {
       return computedCache[serializedArgs]?.()
     }
-    const computedSignal = computed(
-      () => {
-        void signal()
-        return fn(...argsArray)
-      },
-      { debugName },
-    )
+    const computedSignal = computed(() => {
+      void signal()
+      return fn(...argsArray)
+    })
 
     computedCache[serializedArgs] = computedSignal
 
@@ -108,94 +95,6 @@ export function toComputed<
   }
 }
 
-function serializeArgs(...args: Array<any>) {
+function serializeArgs(...args: any[]) {
   return JSON.stringify(args)
-}
-
-function getDefaultProxyHandler<
-  TFeatures extends TableFeatures,
-  TData extends RowData,
->(tableSignal: Signal<Table<TFeatures, TData>>) {
-  return {
-    apply() {
-      return tableSignal()
-    },
-    get(target, property, receiver): any {
-      if (Reflect.has(target, property)) {
-        return Reflect.get(target, property)
-      }
-      const table = untracked(tableSignal)
-      /**
-       * Attempt to convert all accessors into computed ones,
-       * excluding handlers as they do not retain any reactive value
-       */
-      if (
-        typeof property === 'string' &&
-        property.startsWith('get') &&
-        !property.endsWith('Handler') &&
-        !property.endsWith('Model')
-      ) {
-        const maybeFn = table[property as keyof typeof target] as
-          | Function
-          | never
-        if (typeof maybeFn === 'function') {
-          Object.defineProperty(target, property, {
-            value: toComputed(tableSignal, maybeFn),
-            configurable: true,
-            enumerable: true,
-          })
-          return target[property as keyof typeof target]
-        }
-      }
-      return ((target as any)[property] = (table as any)[property])
-    },
-    has(_, prop) {
-      return (
-        Reflect.has(untracked(tableSignal), prop) ||
-        Reflect.has(tableSignal, prop)
-      )
-    },
-    ownKeys() {
-      return [...Reflect.ownKeys(untracked(tableSignal))]
-    },
-    getOwnPropertyDescriptor() {
-      return {
-        enumerable: true,
-        configurable: true,
-      }
-    },
-  } satisfies ProxyHandler<Table<TFeatures, TData>>
-}
-
-function getExperimentalProxyHandler<
-  TFeatures extends TableFeatures,
-  TData extends RowData,
->(tableSignal: Signal<Table<TFeatures, TData>>) {
-  return {
-    apply() {
-      return tableSignal()
-    },
-    get(target, property, receiver): any {
-      if (Reflect.has(target, property)) {
-        return Reflect.get(target, property)
-      }
-      const table = untracked(tableSignal)
-      return ((target as any)[property] = (table as any)[property])
-    },
-    has(_, property) {
-      return (
-        Reflect.has(untracked(tableSignal), property) ||
-        Reflect.has(tableSignal, property)
-      )
-    },
-    ownKeys() {
-      return Reflect.ownKeys(untracked(tableSignal))
-    },
-    getOwnPropertyDescriptor() {
-      return {
-        enumerable: true,
-        configurable: true,
-      }
-    },
-  } satisfies ProxyHandler<Table<TFeatures, TData>>
 }
