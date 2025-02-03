@@ -3,42 +3,26 @@ import {
   Component,
   computed,
   signal,
+  TemplateRef,
   viewChild,
 } from '@angular/core'
 import {
-  FlexRenderComponent,
+  ColumnDef,
+  createAngularTable,
+  flexRenderComponent,
   FlexRenderDirective,
-  columnFilteringFeature,
-  createFilteredRowModel,
-  createPaginatedRowModel,
-  createTableHelper,
-  filterFns,
-  rowPaginationFeature,
-  rowSelectionFeature,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  RowSelectionState,
 } from '@tanstack/angular-table'
-import { FormsModule } from '@angular/forms'
 import { FilterComponent } from './filter'
-import { makeData } from './makeData'
+import { makeData, type Person } from './makeData'
+import { FormsModule } from '@angular/forms'
 import {
   TableHeadSelectionComponent,
   TableRowSelectionComponent,
 } from './selection-column.component'
-import type { Person } from './makeData'
-import type { ColumnDef, RowSelectionState } from '@tanstack/angular-table'
-import type { TemplateRef } from '@angular/core'
-
-const tableHelper = createTableHelper({
-  _features: {
-    columnFilteringFeature,
-    rowPaginationFeature,
-    rowSelectionFeature,
-  },
-  _rowModels: {
-    filteredRowModel: createFilteredRowModel(filterFns),
-    paginatedRowModel: createPaginatedRowModel(),
-  },
-  debugTable: true,
-})
 
 @Component({
   selector: 'app-root',
@@ -55,43 +39,43 @@ export class AppComponent {
   readonly ageHeaderCell =
     viewChild.required<TemplateRef<unknown>>('ageHeaderCell')
 
-  readonly columns: Array<ColumnDef<typeof tableHelper.features, Person>> = [
+  readonly columns: ColumnDef<Person>[] = [
     {
       id: 'select',
       header: () => {
-        return new FlexRenderComponent(TableHeadSelectionComponent)
+        return flexRenderComponent(TableHeadSelectionComponent)
       },
       cell: () => {
-        return new FlexRenderComponent(TableRowSelectionComponent)
+        return flexRenderComponent(TableRowSelectionComponent)
       },
     },
     {
       header: 'Name',
-      footer: (props) => props.column.id,
+      footer: props => props.column.id,
       columns: [
         {
           accessorKey: 'firstName',
-          cell: (info) => info.getValue(),
-          footer: (props) => props.column.id,
+          cell: info => info.getValue(),
+          footer: props => props.column.id,
           header: 'First name',
         },
         {
-          accessorFn: (row) => row.lastName,
+          accessorFn: row => row.lastName,
           id: 'lastName',
-          cell: (info) => info.getValue(),
+          cell: info => info.getValue(),
           header: () => 'Last Name',
-          footer: (props) => props.column.id,
+          footer: props => props.column.id,
         },
       ],
     },
     {
       header: 'Info',
-      footer: (props) => props.column.id,
+      footer: props => props.column.id,
       columns: [
         {
           accessorKey: 'age',
           header: () => this.ageHeaderCell(),
-          footer: (props) => props.column.id,
+          footer: props => props.column.id,
         },
         {
           header: 'More Info',
@@ -99,17 +83,17 @@ export class AppComponent {
             {
               accessorKey: 'visits',
               header: () => 'Visits',
-              footer: (props) => props.column.id,
+              footer: props => props.column.id,
             },
             {
               accessorKey: 'status',
               header: 'Status',
-              footer: (props) => props.column.id,
+              footer: props => props.column.id,
             },
             {
               accessorKey: 'progress',
               header: 'Profile Progress',
-              footer: (props) => props.column.id,
+              footer: props => props.column.id,
             },
           ],
         },
@@ -117,31 +101,35 @@ export class AppComponent {
     },
   ]
 
-  table = tableHelper.injectTable(() => ({
+  table = createAngularTable(() => ({
     data: this.data(),
     columns: this.columns,
     state: {
       rowSelection: this.rowSelection(),
     },
-    enableExperimentalReactivity: true,
     enableRowSelection: true, // enable row selection for all rows
     // enableRowSelection: row => row.original.age > 18, // or enable row selection conditionally per row
-    onRowSelectionChange: (updaterOrValue) => {
+    onRowSelectionChange: updaterOrValue => {
       this.rowSelection.set(
         typeof updaterOrValue === 'function'
           ? updaterOrValue(this.rowSelection())
-          : updaterOrValue,
+          : updaterOrValue
       )
     },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    debugTable: true,
   }))
 
   readonly stringifiedRowSelection = computed(() =>
-    JSON.stringify(this.rowSelection(), null, 2),
+    JSON.stringify(this.rowSelection(), null, 2)
   )
 
   readonly rowSelectionLength = computed(
-    () => Object.keys(this.rowSelection()).length,
+    () => Object.keys(this.rowSelection()).length
   )
+
   onPageInputChange(event: Event): void {
     const inputElement = event.target as HTMLInputElement
     const page = inputElement.value ? Number(inputElement.value) - 1 : 0
@@ -155,7 +143,7 @@ export class AppComponent {
   logSelectedFlatRows(): void {
     console.info(
       'table.getSelectedRowModel().flatRows',
-      this.table.getSelectedRowModel().flatRows,
+      this.table.getSelectedRowModel().flatRows
     )
   }
 

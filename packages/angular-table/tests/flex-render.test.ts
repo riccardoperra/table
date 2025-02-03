@@ -1,15 +1,22 @@
-import { Component, ViewChild, input } from '@angular/core'
-import { TestBed } from '@angular/core/testing'
+import {
+  Component,
+  ViewChild,
+  input,
+  type TemplateRef,
+  effect,
+} from '@angular/core'
+import { TestBed, type ComponentFixture } from '@angular/core/testing'
 import { createColumnHelper } from '@tanstack/table-core'
 import { describe, expect, test } from 'vitest'
 import {
-  FlexRenderComponent,
   FlexRenderDirective,
   injectFlexRenderContext,
 } from '../src/flex-render'
 import { setFixtureSignalInput, setFixtureSignalInputs } from './test-utils'
-import type { ComponentFixture } from '@angular/core/testing'
-import type { TemplateRef } from '@angular/core'
+import {
+  flexRenderComponent,
+  FlexRenderComponent,
+} from '../src/flex-render/flex-render-component'
 
 interface Data {
   id: string
@@ -20,9 +27,9 @@ interface Data {
 }
 
 describe('FlexRenderDirective', () => {
-  const helper = createColumnHelper<{}, Data>()
+  const helper = createColumnHelper<Data>()
 
-  test('should render primitives', () => {
+  test('should render primitives', async () => {
     const fixture = TestBed.createComponent(TestRenderComponent)
 
     // Null
@@ -110,7 +117,7 @@ describe('FlexRenderDirective', () => {
 
     const fixture = TestBed.createComponent(TestRenderComponent)
     setFixtureSignalInputs(fixture, {
-      content: () => new FlexRenderComponent(FakeComponent),
+      content: () => flexRenderComponent(FakeComponent),
       context: {
         property: 'Context value',
       },
@@ -126,13 +133,15 @@ describe('FlexRenderDirective', () => {
 
   // Skip for now, test framework (using ComponentRef.setInput) cannot recognize signal inputs
   // as component inputs
-  test.skip('should render custom components', () => {
+  test('should render custom components', () => {
     @Component({
       template: `{{ row().property }}`,
       standalone: true,
     })
     class FakeComponent {
       row = input.required<{ property: string }>()
+
+      constructor() {}
     }
 
     const fixture = TestBed.createComponent(TestRenderComponent)
@@ -178,7 +187,7 @@ type FlexRenderDirectiveAllowedContent = FlexRenderDirective<
 
 function expectPrimitiveValueIs(
   fixture: ComponentFixture<unknown>,
-  value: unknown,
+  value: unknown
 ) {
   expect(fixture.nativeElement.matches(':empty')).toBe(false)
   const span = fixture.nativeElement.querySelector('span')
